@@ -151,10 +151,10 @@ cd ..
 
 # 3. Clone Helixir schema
 git clone https://github.com/nikita-rulenko/Helixir helixir-repo
-mkdir -p db && cp helixir-repo/helixir/schema/*.hx db/
 
 # 4. Initialize helix project and deploy
 ./helix-db/target/release/helix init local -n dev
+cp helixir-repo/helixir/schema/*.hx db/
 ./helix-db/target/release/helix push dev
 
 # 5. Initialize the ontology
