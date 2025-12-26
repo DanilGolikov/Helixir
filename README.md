@@ -99,59 +99,103 @@ Your AI develops consistent habits: recalls context at session start, saves impo
 
 ## 🚀 Quick Start
 
-### One-Command Setup (Docker)
+### Quick Setup (Recommended)
 
 ```bash
-# Clone and start everything
+# 1. Clone repositories
 git clone https://github.com/nikita-rulenko/Helixir
+cd Helixir
+git clone https://github.com/HelixDB/helix-db.git
+
+# 2. Build the Helix CLI
+cd helix-db
+cargo build --release --bin helix
+cd ..
+
+# 3. Initialize and deploy HelixDB with Helixir schema
 cd helixir
+../helix-db/target/release/helix init local -n dev
+cp schema/*.hx db/
+../helix-db/target/release/helix push dev
 
-# Create config
-cat > .env << 'EOF'
-HELIX_LLM_API_KEY=your_cerebras_or_openai_key
-HELIX_EMBEDDING_API_KEY=your_openrouter_or_openai_key
-EOF
+# 4. Initialize the ontology (required for first run)
+curl -X POST http://localhost:6969/initializeBaseOntology \
+  -H "Content-Type: application/json" -d '{}'
 
-# Start HelixDB + deploy schema
-docker-compose up -d
+# 5. Build and run Helixir MCP server
+cargo build --release
+export HELIX_HOST=localhost
+export HELIX_PORT=6969
+export LLM_API_KEY=your_cerebras_or_openai_key
+export EMBEDDING_API_KEY=your_openrouter_or_openai_key
+./target/release/helixir-mcp
 ```
 
 **Requirements:**
-- Docker & Docker Compose installed
+- Rust 1.75+ and Cargo
+- Docker (for HelixDB container)
 - API keys (see [Configuration](#-configuration))
 
-### Manual Installation
+### Using Pre-built Binaries
 
 ```bash
 # 1. Download binary for your platform
 curl -fL https://github.com/nikita-rulenko/Helixir/archive/refs/tags/Think_fast.tar.gz \
   | tar xzf -
 
-# 2. Start HelixDB (if not running)
-docker run -d -p 6969:6969 helixdb/helixdb:latest
+# 2. Clone and build HelixDB with Helix CLI
+git clone https://github.com/HelixDB/helix-db.git
+cd helix-db
+cargo build --release --bin helix
+cd ..
 
-# 3. Deploy schema
-./helixir-deploy --host localhost --port 6969
+# 3. Clone Helixir schema
+git clone https://github.com/nikita-rulenko/Helixir helixir-repo
+mkdir -p db && cp helixir-repo/helixir/schema/*.hx db/
 
-# 4. Run MCP server
+# 4. Initialize helix project and deploy
+./helix-db/target/release/helix init local -n dev
+./helix-db/target/release/helix push dev
+
+# 5. Initialize the ontology
+curl -X POST http://localhost:6969/initializeBaseOntology \
+  -H "Content-Type: application/json" -d '{}'
+
+# 6. Run MCP server
+export HELIX_HOST=localhost
+export HELIX_PORT=6969
 export LLM_API_KEY=your_key
 export EMBEDDING_API_KEY=your_key
 ./helixir-mcp
 ```
 
-### Build from Source
+### Docker Compose (Development)
+
+For development/testing with docker-compose:
 
 ```bash
 git clone https://github.com/nikita-rulenko/Helixir
+cd Helixir
+git clone https://github.com/HelixDB/helix-db.git
+
+# Build helix CLI and deploy
+cd helix-db && cargo build --release --bin helix && cd ..
 cd helixir
+../helix-db/target/release/helix init local -n dev
+cp schema/*.hx db/
+../helix-db/target/release/helix push dev
 
-# Build
-cargo build --release
+# Initialize ontology
+curl -X POST http://localhost:6969/initializeBaseOntology \
+  -H "Content-Type: application/json" -d '{}'
 
-# Deploy schema & run
-./target/release/helixir-deploy --host localhost --port 6969
-./target/release/helixir-mcp
+# Run MCP server (for Cursor/Claude Desktop, run on host - not in Docker)
+HELIX_HOST=localhost HELIX_PORT=6969 \
+LLM_API_KEY=your_key EMBEDDING_API_KEY=your_key \
+cargo run --release --bin helixir-mcp
 ```
+
+> **Note:** MCP servers communicate via stdio, so `helixir-mcp` should run on the host machine, not inside a Docker container.
 
 ---
 
@@ -513,6 +557,97 @@ RUST_LOG=helixir=debug cargo run --bin helixir-mcp
 cargo clippy
 cargo fmt --check
 ```
+
+---
+
+## 🔧 Troubleshooting
+
+### "Ontology operation failed" on MCP startup
+
+**Error message:**
+
+```text
+Error: Tooling error: Ontology operation failed: Loader error: Database error: Query failed: Got Error from server: {"error":"Graph error: No value found","code":"GRAPH_ERROR"}
+```
+
+**Solution:**
+
+Initialize the base ontology before starting the MCP server:
+
+```bash
+curl -X POST http://localhost:6969/initializeBaseOntology \
+  -H "Content-Type: application/json" -d '{}'
+```
+
+This creates the root "Thing" concept required by Helixir's ontology system.
+
+### Schema compilation error: "reserved field name"
+
+**Error message:**
+
+```text
+error[E204]: field `version` is a reserved field name
+```
+
+**Solution:**
+
+The field `version` is reserved in HelixDB. Rename it to something else (e.g., `agent_version`):
+
+```diff
+N::Agent {
+  agent_id: String,
+-  version: String,
++  agent_version: String,
+}
+```
+
+### HelixDB container not starting
+
+**Check if helix push was run:**
+
+```bash
+# The helix CLI manages the container
+../helix-db/target/release/helix status
+
+# Or check Docker directly
+docker ps | grep helix
+```
+
+**Restart the instance:**
+
+```bash
+../helix-db/target/release/helix stop dev
+../helix-db/target/release/helix push dev
+```
+
+### Query returns "NOT_FOUND"
+
+**Example error:**
+
+```json
+{"error":"Couldn't find `myQuery` of type Query","code":"NOT_FOUND"}
+```
+
+**Solution:**
+
+Queries must be defined in `db/queries.hx` and deployed with `helix push`. After modifying queries:
+
+```bash
+../helix-db/target/release/helix push dev
+```
+
+### MCP server not connecting to Cursor/Claude
+
+**Important:** MCP servers use stdio communication, not HTTP. The server must run on the host machine, not inside Docker.
+
+```bash
+# Run directly on host
+HELIX_HOST=localhost HELIX_PORT=6969 ./target/release/helixir-mcp
+```
+
+Check your MCP config points to the correct binary path:
+- Cursor: `~/.cursor/mcp.json`
+- Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ---
 
