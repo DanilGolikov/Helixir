@@ -26,7 +26,7 @@ pub const DEFAULT_OLLAMA_URL: &str = "http://localhost:11434";
 pub const DEFAULT_EMBEDDING_MODEL: &str = "nomic-embed-text";
 
 
-pub const DEFAULT_LLM_MODEL: &str = "llama3.1:8b";
+pub const DEFAULT_LLM_MODEL: &str = "gpt-oss:120b-cloud";
 
 
 pub const DEFAULT_HELIX_PORT: u16 = 6969;

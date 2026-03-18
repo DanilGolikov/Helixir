@@ -67,7 +67,7 @@ impl HelixirConfig {
 
             llm_fallback_enabled: true,
             llm_fallback_url: "http://localhost:11434".to_string(),
-            llm_fallback_model: "llama3.2".to_string(),
+            llm_fallback_model: "gpt-oss:120b-cloud".to_string(),
 
             embedding_provider: "ollama".to_string(),
             embedding_model: "nomic-embed-text".to_string(),

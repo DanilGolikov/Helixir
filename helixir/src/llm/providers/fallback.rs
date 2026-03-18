@@ -10,7 +10,7 @@ use super::base::{LlmMetadata, LlmProvider, LlmProviderError};
 use super::ollama::OllamaProvider;
 
 const DEFAULT_FALLBACK_URL: &str = "http://localhost:11434";
-const DEFAULT_FALLBACK_MODEL: &str = "llama3.2";
+const DEFAULT_FALLBACK_MODEL: &str = "gpt-oss:120b-cloud";
 
 
 pub struct LlmProviderWithFallback {
